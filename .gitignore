@@ -4,5 +4,4 @@ __pycache__/
 .idea/
 plots/
 *.pt
-*.csv
 *.zip
