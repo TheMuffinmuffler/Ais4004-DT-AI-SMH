@@ -35,6 +35,57 @@ def auto_save_training_history(hist_df: pd.DataFrame, model_name: str, run_param
     plt.close()
     return file_path
 
+def auto_save_batch_training_histories(all_histories: dict, param_to_vary: str, experiment_name: str, base_dir: str = "plots"):
+    """
+    Saves consolidated training history plots (one for train, one for test) for a batch of experiments,
+    and also saves all the raw training data as a CSV.
+    """
+    out_path = Path(base_dir) / experiment_name
+    out_path.mkdir(parents=True, exist_ok=True)
+    
+    # 1. Save Raw Data (CSV)
+    combined_rows = []
+    for val, hist_df in all_histories.items():
+        temp_df = hist_df.copy()
+        temp_df[param_to_vary] = val
+        combined_rows.append(temp_df)
+    
+    if combined_rows:
+        batch_df = pd.concat(combined_rows, ignore_index=True)
+        csv_path = out_path / "batch_training_histories.csv"
+        batch_df.to_csv(csv_path, index=False)
+        st.info(f"Batch training data saved to: {csv_path}")
+
+    # 2. Save Consolidated Train Loss Plot
+    plt.figure(figsize=(10, 6))
+    for val, hist_df in all_histories.items():
+        if "train_huber_scaled" in hist_df.columns:
+            plt.plot(hist_df["epoch"], hist_df["train_huber_scaled"], label=f"{param_to_vary}={val}")
+    plt.title(f"Batch Train Loss: {param_to_vary}")
+    plt.xlabel("Epoch")
+    plt.ylabel("Huber Loss (scaled)")
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    train_plot_path = out_path / "batch_train_loss.png"
+    plt.savefig(train_plot_path)
+    plt.close()
+
+    # 3. Save Consolidated Test Loss Plot
+    plt.figure(figsize=(10, 6))
+    for val, hist_df in all_histories.items():
+        if "test_huber_scaled" in hist_df.columns:
+            plt.plot(hist_df["epoch"], hist_df["test_huber_scaled"], label=f"{param_to_vary}={val}")
+    plt.title(f"Batch Test Loss: {param_to_vary}")
+    plt.xlabel("Epoch")
+    plt.ylabel("Huber Loss (scaled)")
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    test_plot_path = out_path / "batch_test_loss.png"
+    plt.savefig(test_plot_path)
+    plt.close()
+    
+    return train_plot_path, test_plot_path
+
 def auto_save_comparison_plot(out_df: pd.DataFrame, output_name: str, x_col: str, model_name: str, run_params: str, base_dir: str = "plots"):
     """
     Automatically saves a comparison plot as a PNG in a parameter-specific folder.

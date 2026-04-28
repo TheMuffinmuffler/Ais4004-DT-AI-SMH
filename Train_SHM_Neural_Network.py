@@ -402,6 +402,7 @@ if df is not None:
             batch_progress = st.progress(0.0)
             
             all_results = {} # {value: pred_series}
+            all_histories = {} # {value: hist_df}
             
             timestamp = time.strftime("%Y%m%d-%H%M%S")
             # Create a more descriptive folder name: batch_stride_1_2_5_10_2026...
@@ -430,14 +431,8 @@ if df is not None:
                 train_status = st.empty()
                 model_bytes, hist_df = train_model(df, input_cols, target_cols, local_cfg, train_status)
                 
-                # Save training history for this specific batch run
-                batch_hist_params = f"{param_to_vary}_{val}"
-                plot_utils.auto_save_training_history(
-                    hist_df, 
-                    f"run_{val}", 
-                    batch_hist_params, 
-                    base_dir=f"plots/{experiment_name}/histories"
-                )
+                # Store history for batch plotting later
+                all_histories[val] = hist_df
                 
                 # 2. Run Inference
                 batch_status.text(f"Running inference for {param_to_vary}={val}...")
@@ -463,7 +458,18 @@ if df is not None:
             
             batch_status.success(f"Batch experiment finished! Folder: `plots/{experiment_name}/`")
             
-            # 3. Generate Multi-Comparison Plots
+            # 3. Generate Consolidated History Plots
+            st.subheader("Batch Training Histories")
+            train_plot, test_plot = plot_utils.auto_save_batch_training_histories(
+                all_histories, param_to_vary, experiment_name
+            )
+            col1, col2 = st.columns(2)
+            with col1:
+                st.image(str(train_plot), caption="Batch Train Loss")
+            with col2:
+                st.image(str(test_plot), caption="Batch Test Loss")
+
+            # 4. Generate Multi-Comparison Plots
             st.subheader("Batch Comparison Results")
             st.info(f"All results saved in: `{Path('plots').resolve() / experiment_name}`")
             
@@ -487,7 +493,7 @@ if df is not None:
             for f in saved_files:
                 st.write(f"- `{f.name}`")
             
-            st.write(f"### Individual training histories saved in: `plots/{experiment_name}/histories/`")
+            st.write(f"### Consolidated batch training histories and data saved in: `plots/{experiment_name}/`")
 
 else:
     st.info("Provide a CSV path or upload a CSV file to begin.")
